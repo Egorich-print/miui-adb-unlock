@@ -16,11 +16,11 @@ does not close: **accessibility actions**. It drives the stock `uiautomator`
 harness on the phone and clicks the settings for you — no root, no modified
 system image.
 
-Measured on a Redmi Note 5 / MIUI 12: the click reaches MIUI's own verification,
+Measured on a Redmi Note 5 / MIUI 12: the click reaches MIUI's own verification
 and the vendor answers **"Sign in with your Mi Account"** — on this build *both*
-options require a Mi Account sign-in, the online check alone is not enough. The
-tool automates everything up to that point; the account is a vendor rule that no
-amount of automation removes.
+options need a Mi Account sign-in. With an account signed in the tool completes
+the whole flow unattended: both switches flip and the blocked adb capabilities
+(`pm grant`, `input tap`, `settings put secure`) come back.
 
 ```
 $ miui-adb-unlock doctor
@@ -79,7 +79,10 @@ Two gates were measured on the device:
   `xiaomi_id` (no account is signed in).
 
 With a Mi Account signed in, `AdbInputApplyActivity` takes a different branch and
-shows a local dialog that sets the property without contacting the server.
+shows a local dialog that sets the property without contacting the server — that
+is the path the tool drives. The dialog is multi-step; its positive button is
+`com.miui.securitycenter:id/accept` and it counts down before it reacts, so the
+flow keeps clicking it until the option is really on.
 
 ## How this tool works
 

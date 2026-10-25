@@ -20,3 +20,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Semver tags on
   started the crashing drawer instead), MIUI's crash dialog is dismissed and the
   Settings process is started on a sub-settings screen first, because the drawer
   of this build cannot inflate `android.support.v7.widget.CardView`.
+- The driver now searches every accessibility window (MIUI's warning dialog lives
+  in its own window) and prints the package name in the dump.
+- The unlock flow clicks MIUI's multi-step warning dialog
+  (`com.miui.securitycenter:id/accept`) until the option is really enabled, and
+  the `wifi` command clicks the network name instead of the "⋮" button.

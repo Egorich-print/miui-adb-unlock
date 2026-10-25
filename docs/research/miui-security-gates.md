@@ -80,7 +80,19 @@ Consequences (measured on the device, 2026-10-25):
   that sets the property without contacting the server.
 
 So the account is a hard vendor requirement on this build, not a detail of the
-network check.
+network check. With the account signed in (measured 2026-10-25, Redmi Note 5,
+MIUI 12 V12.0.2.0.PEIMIXM) the whole flow completes unattended:
+
+* `persist.security.adbinput` — unset → `1`;
+* `persist.security.adbinstall` — unset → `1`;
+* the blocked adb capabilities came back: `settings put secure`, `pm grant` and
+  `input tap` all succeeded.
+
+The warning dialog is multi-step; the positive button is
+`com.miui.securitycenter:id/accept` (the reject button is
+`com.miui.securitycenter:id/reject`), it counts down before it reacts, and the
+dialog lives in its own accessibility window — the driver therefore searches all
+windows, not only the active one.
 
 ## 3. Gates on the adb identity
 

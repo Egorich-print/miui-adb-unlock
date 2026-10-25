@@ -7,6 +7,7 @@ import com.android.uiautomator.testrunner.UiAutomatorTestCase;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -91,7 +92,10 @@ public class A11yDriver extends UiAutomatorTestCase {
     /* ---------------------------------------------------------------- commands */
 
     private void runClick(String text, boolean exact) {
-        AccessibilityNodeInfo node = findWithScroll(text, exact);
+        AccessibilityNodeInfo node = findInAnyWindow(text, exact);
+        if (node == null) {
+            node = findWithScroll(text, exact);
+        }
         if (node == null) {
             result("ERR not-found " + text);
             return;
@@ -109,7 +113,13 @@ public class A11yDriver extends UiAutomatorTestCase {
     }
 
     private void runClickById(String resourceId) {
-        AccessibilityNodeInfo node = findByResourceId(root(), resourceId);
+        AccessibilityNodeInfo node = null;
+        for (AccessibilityNodeInfo root : allRoots()) {
+            node = findByResourceId(root, resourceId);
+            if (node != null) {
+                break;
+            }
+        }
         if (node == null) {
             result("ERR id-not-found " + resourceId);
             return;
@@ -168,12 +178,14 @@ public class A11yDriver extends UiAutomatorTestCase {
     }
 
     private void runDump() {
-        AccessibilityNodeInfo root = root();
-        if (root == null) {
+        List<AccessibilityNodeInfo> roots = allRoots();
+        if (roots.isEmpty()) {
             result("ERR no-root");
             return;
         }
-        dump(root, 0);
+        for (AccessibilityNodeInfo root : roots) {
+            dump(root, 0);
+        }
         result("OK dump");
     }
 
@@ -181,7 +193,7 @@ public class A11yDriver extends UiAutomatorTestCase {
 
     /** Finds a node by text, scrolling the active list until it shows up. */
     private AccessibilityNodeInfo findWithScroll(String text, boolean exact) {
-        AccessibilityNodeInfo node = findByText(root(), text, exact);
+        AccessibilityNodeInfo node = findInAnyWindow(text, exact);
         if (node != null) {
             return node;
         }
@@ -200,7 +212,7 @@ public class A11yDriver extends UiAutomatorTestCase {
                 return null;
             }
             sleep(600);
-            node = findByText(root(), text, exact);
+            node = findInAnyWindow(text, exact);
             if (node != null) {
                 return node;
             }
@@ -352,6 +364,60 @@ public class A11yDriver extends UiAutomatorTestCase {
     }
 
     /**
+     * Roots of every accessibility window.
+     *
+     * <p>A MIUI dialog (the adb-input warning, the Wi-Fi password prompt) lives in its
+     * own window, and the "active" window is not always the one that holds the node
+     * we want to click. Searching all windows avoids depending on that ordering.
+     */
+    private List<AccessibilityNodeInfo> allRoots() {
+        List<AccessibilityNodeInfo> roots = new ArrayList<AccessibilityNodeInfo>();
+        AccessibilityNodeInfo fresh = freshRoot();
+        if (fresh != null) {
+            roots.add(fresh);
+        }
+        try {
+            Class<?> automationClass = Class.forName("android.app.UiAutomation");
+            Field field = bridge.getClass().getSuperclass().getDeclaredField("mUiAutomation");
+            field.setAccessible(true);
+            Object automation = field.get(bridge);
+            Method getWindows = automationClass.getMethod("getWindows");
+            @SuppressWarnings("unchecked")
+            List<Object> windows = (List<Object>) getWindows.invoke(automation);
+            for (Object window : windows) {
+                AccessibilityNodeInfo node = (AccessibilityNodeInfo) window.getClass()
+                        .getMethod("getRoot").invoke(window);
+                if (node != null && !containsSame(roots, node)) {
+                    roots.add(node);
+                }
+            }
+        } catch (Throwable ignored) {
+            // keep whatever we have
+        }
+        return roots;
+    }
+
+    private boolean containsSame(List<AccessibilityNodeInfo> roots, AccessibilityNodeInfo node) {
+        for (AccessibilityNodeInfo root : roots) {
+            if (root == node) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Finds a node by text in any window. */
+    private AccessibilityNodeInfo findInAnyWindow(String text, boolean exact) {
+        for (AccessibilityNodeInfo root : allRoots()) {
+            AccessibilityNodeInfo node = findByText(root, text, exact);
+            if (node != null) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Root obtained from {@code getRootInActiveWindow()}.
      *
      * <p>Waits for the UI to settle, so it can return null on a permanently animating
@@ -415,6 +481,7 @@ public class A11yDriver extends UiAutomatorTestCase {
             line.append("  ");
         }
         line.append(node.getClassName())
+            .append(" pkg=").append(node.getPackageName())
             .append(" id=").append(node.getViewIdResourceName())
             .append(" text=").append(node.getText())
             .append(" desc=").append(node.getContentDescription())

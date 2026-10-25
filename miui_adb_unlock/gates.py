@@ -34,6 +34,9 @@ PROPERTY_ADB_INSTALL = "persist.security.adbinstall"
 #: protected by a signature|privileged permission held by uid 1000 only.
 PREFERENCE_ADB_INSTALL = "security_adb_install_enable"
 
+#: The positive button of MIUI's multi-step warning dialog.
+ACCEPT_BUTTON = "com.miui.securitycenter:id/accept"
+
 #: The provider that owns MIUI's own preference store.
 REMOTE_PREFERENCE_PROVIDER = "content://com.miui.securitycenter.remoteprovider"
 

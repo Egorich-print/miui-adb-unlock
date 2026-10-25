@@ -9,6 +9,7 @@ from typing import List, Optional
 from .adb import Adb, AdbError
 from .driver import Driver, DriverResult
 from .gates import (
+    ACCEPT_BUTTON,
     CAPABILITY_PROBES,
     GATES,
     PROPERTY_ADB_INPUT,
@@ -214,14 +215,25 @@ class Unlocker:
             return reports
         reports.append(Report("click the option", "ok", target.row))
 
-        time.sleep(3)
+        time.sleep(2)
         focus = self._focus()
         reports.append(Report("MIUI verification", "ok", focus))
 
-        confirm = self.driver.click_id("android:id/button1")
-        self._log("confirm click: " + confirm.message)
-        time.sleep(3)
-
+        # MIUI shows a multi-step warning dialog whose positive button lives at
+        # com.miui.securitycenter:id/accept (not android:id/button1) and counts
+        # down before it reacts. Click it until the option is actually on.
+        value = ""
+        for _ in range(12):
+            value = self.adb.getprop(
+                PROPERTY_ADB_INPUT if target_key == "security-debugging" else PROPERTY_ADB_INSTALL
+            )
+            if value == "1":
+                break
+            confirm = self.driver.click_id(ACCEPT_BUTTON)
+            if not confirm.ok:
+                break
+            self._log("accept click: " + confirm.message)
+            time.sleep(2)
         value = self.adb.getprop(
             PROPERTY_ADB_INPUT if target_key == "security-debugging" else PROPERTY_ADB_INSTALL
         )
@@ -258,9 +270,10 @@ class Unlocker:
         self._open_settings(WIFI_ACTIVITY, "Wifi")
         reports.append(Report("open wi-fi settings", "ok", self._focus()))
 
-        detail = self.driver.detail(ssid)
+        # clicking the network name connects to it; the "⋮" button only opens details
+        detail = self.driver.click(ssid)
         if not detail.ok:
-            detail = self.driver.click(ssid)
+            detail = self.driver.detail(ssid)
         self._log("network click: " + detail.message)
         if not detail.ok:
             reports.append(Report("select network", "fail", detail.message))
