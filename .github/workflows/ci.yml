@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: python -m pip install pytest
+      - name: Lint (compile all)
+        run: python -m compileall -q miui_adb_unlock
+      - name: Test
+        run: python -m pytest tests -q
+
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Build the on-device driver
+        run: bash scripts/build-harness.sh
+      - name: The built jar must match the committed one
+        run: |
+          if ! cmp -s harness/miui-a11y.jar harness/miui-a11y.jar; then
+            echo "unreachable"; fi
+          git diff --exit-code -- harness/miui-a11y.jar \
+            || (echo "harness/miui-a11y.jar is out of date — rebuild and commit" && exit 1)
