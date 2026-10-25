@@ -83,7 +83,10 @@ TARGETS: Dict[str, Target] = {
             "state lives in the system property " + PROPERTY_ADB_INPUT
             + ", writable only by uid 1000"
         ),
-        needs_account=False,
+        # Measured on MIUI 12 (2026-10-25): with the device online the vendor
+        # answers "Sign in with your Mi Account" — the account is required for
+        # this option too, not only for the install-over-USB one.
+        needs_account=True,
         check="getprop " + PROPERTY_ADB_INPUT,
     ),
     "install-over-usb": Target(

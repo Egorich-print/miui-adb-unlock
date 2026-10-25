@@ -13,8 +13,14 @@ verification that needs a signed-in Xiaomi account and a reachable network.
 
 This tool flips those two options on a device you own, using the one channel MIUI
 does not close: **accessibility actions**. It drives the stock `uiautomator`
-harness on the phone and clicks the settings for you — no account, no root, no
-modified system image.
+harness on the phone and clicks the settings for you — no root, no modified
+system image.
+
+Measured on a Redmi Note 5 / MIUI 12: the click reaches MIUI's own verification,
+and the vendor answers **"Sign in with your Mi Account"** — on this build *both*
+options require a Mi Account sign-in, the online check alone is not enough. The
+tool automates everything up to that point; the account is a vendor rule that no
+amount of automation removes.
 
 ```
 $ miui-adb-unlock doctor
@@ -63,8 +69,17 @@ The details, with the exact code paths in the MIUI applications, are in
 MIUI's own way of enabling them is
 `com.android.settings.development.c` → `AdbInputApplyActivity` →
 `AdbInstallVerifyActivity` → an HTTPS request to `srv.sec.miui.com/data/adb`.
-Offline that fails with the toast *"Подключитесь к сети и повторите попытку"*;
-for *Install over USB* MIUI additionally opens the Xiaomi account login.
+
+Two gates were measured on the device:
+
+* **offline** — the request is never made, MIUI shows the toast
+  *"Подключитесь к сети и повторите попытку"*;
+* **online** — the request goes out and the server rejects it with
+  *"Sign in with your Mi Account"*, because the payload carries an empty
+  `xiaomi_id` (no account is signed in).
+
+With a Mi Account signed in, `AdbInputApplyActivity` takes a different branch and
+shows a local dialog that sets the property without contacting the server.
 
 ## How this tool works
 

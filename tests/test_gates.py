@@ -13,8 +13,10 @@ def test_every_target_has_a_row_and_a_check():
         assert target.why_locked, f"{key} does not explain the gate"
 
 
-def test_security_debugging_needs_no_account():
-    assert gates.TARGETS["security-debugging"].needs_account is False
+def test_both_options_need_a_mi_account():
+    # Measured on MIUI 12 (2026-10-25): the vendor answers
+    # "Sign in with your Mi Account" for both options.
+    assert gates.TARGETS["security-debugging"].needs_account is True
 
 
 def test_install_over_usb_needs_an_account():

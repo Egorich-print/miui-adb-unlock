@@ -19,9 +19,11 @@ from .gates import (
     WIFI_ACTIVITY,
 )
 
-#: Flags needed so an explicit component opens the screen instead of being
-#: delivered to an already running top-most instance.
-FLAG_CLEAR_TASK = "0x10008000"
+#: FLAG_ACTIVITY_NEW_TASK. The screen is opened by an explicit component, so the
+#: intent is never delivered to an already running top-most instance; adding
+#: FLAG_ACTIVITY_CLEAR_TASK would reset the task to its root activity, and on
+#: MIUI that root is the crashing Settings drawer.
+FLAG_NEW_TASK = "0x10000000"
 
 
 @dataclass
@@ -51,9 +53,57 @@ class Unlocker:
         if self.verbose:
             print(f"  · {message}")
 
-    def _open_settings(self, component: str) -> None:
-        self.adb.shell(f"am start -n {component} -f {FLAG_CLEAR_TASK}")
+    def _dismiss_crash_dialog(self) -> bool:
+        """Dismisses MIUI's "the app crashed again" dialog.
+
+        The dialog offers "Отмена" (cancel) and "Отправить отчет" (send report);
+        the neutral choice is the cancel button, which is ``android:id/button2``.
+        """
+        focus = self._focus()
+        if "Application Error" not in focus:
+            return False
+        self._log("crash dialog on screen — cancelling it")
+        self.driver.click_id("android:id/button2")
+        time.sleep(2)
+        return True
+
+    def _ensure_settings_process(self) -> None:
+        """Starts the Settings app on a screen that does not crash.
+
+        On some MIUI builds the Settings drawer (the root activity of the task)
+        crashes on a cold start with ``InflateException: Error inflating class
+        android.support.v7.widget.CardView``. A sub-settings screen starts the
+        same process without the drawer, so the flow can reuse it afterwards.
+        """
+        self.adb.shell("am force-stop com.android.settings")
+        time.sleep(1)
+        self.adb.shell(f"am start -n '{WIFI_ACTIVITY}' -f {FLAG_NEW_TASK}")
         time.sleep(4)
+
+    def _open_settings(self, component: str, expect: str = "", timeout: int = 20) -> bool:
+        """Opens a Settings screen and waits until it is in the foreground.
+
+        MIUI's Settings app is heavy to start (and crashes in its main activity on
+        some builds), so the foreground window is polled instead of slept on.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            # the component contains a '$' (inner class): quote it, otherwise the
+            # device shell expands it and the wrong activity is started
+            self.adb.shell(f"am start -n '{component}' -f {FLAG_NEW_TASK}")
+            for _ in range(8):
+                focus = self._focus()
+                if expect and expect in focus:
+                    return True
+                if self._dismiss_crash_dialog():
+                    # the crashed task is dropped by the system only after a moment
+                    time.sleep(3)
+                    self.adb.shell("am force-stop com.android.settings")
+                    break
+                time.sleep(1)
+            if not expect:
+                return True
+        return False
 
     def _focus(self) -> str:
         return self.adb.shell("dumpsys window | grep -m1 mCurrentFocus").stdout.strip()
@@ -149,11 +199,12 @@ class Unlocker:
             return reports
         reports.append(Report("prerequisite", "ok", "device is online"))
 
-        self._open_settings(SETTINGS_ACTIVITY)
-        focus = self._focus()
-        if "DeveloperSettings" not in focus and "DevelopmentSettings" not in focus:
+        self._ensure_settings_process()
+        if not self._open_settings(SETTINGS_ACTIVITY, "DevelopmentSettings"):
+            focus = self._focus()
             reports.append(Report("open developer options", "fail", focus))
             return reports
+        focus = self._focus()
         reports.append(Report("open developer options", "ok", focus))
 
         click = self.driver.click(target.row)
@@ -204,7 +255,7 @@ class Unlocker:
     def wifi(self, ssid: str, password: Optional[str]) -> List[Report]:
         """Connects the device to a Wi-Fi network through the Settings UI."""
         reports: List[Report] = []
-        self._open_settings(WIFI_ACTIVITY)
+        self._open_settings(WIFI_ACTIVITY, "Wifi")
         reports.append(Report("open wi-fi settings", "ok", self._focus()))
 
         detail = self.driver.detail(ssid)

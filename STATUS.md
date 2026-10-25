@@ -15,13 +15,20 @@
   `AccessibilityNodeInfo.performAction()`, working where input injection is
   blocked (verified: the click on *USB debugging (security settings)* opens
   `com.miui.securitycenter/…/AdbInstallVerifyActivity`).
-- `unlock security-debugging` — reaches MIUI's verification dialog. The option
-  itself flips only when the device can reach `srv.sec.miui.com`.
+- `unlock security-debugging` — reaches MIUI's verification. With the device
+  offline MIUI answers *"Подключитесь к сети и повторите попытку"*; with the
+  device online the request reaches the vendor and the answer is
+  *"Sign in with your Mi Account"*. The option itself flips only when a Mi
+  Account is signed in (then MIUI takes its local branch and no server is
+  involved).
 
 ### Does not work
 
 - `unlock install-over-usb` — MIUI demands a signed-in Xiaomi account for this
   option; without it the option stays off. Not a tool limitation.
+- The unlock flow without a Mi Account — measured on MIUI 12: the vendor
+  requires the account for both options, the online check alone is not enough.
+  The tool reaches that point and reports it.
 - The unlock flow on a device without internet — MIUI's verification fails with
   the toast "Connect to the network and try again".
 

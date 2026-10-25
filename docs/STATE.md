@@ -12,10 +12,11 @@
 
 ## Open
 
-1. **Complete the unlock on a device that is online.** The click path is proven;
-   the last mile is MIUI's verification round trip, which needs the device to
-   reach `srv.sec.miui.com`. Test with a device that has internet and record the
-   output in `docs/research/`.
+1. **Complete the unlock with a Mi Account signed in.** The click path is
+   proven end to end; the last mile is MIUI's own verification, which asks for a
+   Mi Account ("Sign in with your Mi Account", measured 2026-10-25). With an
+   account the flow takes the local branch and sets the property without the
+   server — record the output in `docs/research/`.
 2. **Multi-device label mapping.** The MIUI labels in `gates.py` are from one
    build; make the matching tolerant (substring, locale-independent).
 3. **Wi-Fi profile repair.** MIUI refuses to change the security type of a saved
@@ -27,6 +28,7 @@
 
 ## Blocked
 
-- *Install over USB* without a signed-in Xiaomi account: MIUI's own rule, not a
-  tool limitation. The practical goal (installing packages over USB) already
-  works — `adb install` is not blocked.
+- *Both options* without a signed-in Xiaomi account: MIUI's own rule, not a tool
+  limitation. The practical goal of installing packages over USB already works —
+  `adb install` is not blocked; the options additionally restore adb input
+  injection, permission granting and secure-settings writes.

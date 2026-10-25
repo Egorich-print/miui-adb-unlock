@@ -68,14 +68,19 @@ The asynchronous task posts to `https://srv.sec.miui.com/data/adb`
 (`https://srv.sec.intl.miui.com/data/adb` on international builds) with a JSON
 body (`xiaomi_id`, `time`) and reads `status` / `message` from the answer.
 
-Consequences:
+Consequences (measured on the device, 2026-10-25):
 
-* **offline** — the option cannot be enabled at all, not even by hand;
-* **online** — the *security settings* option does **not** need an account: the
-  account is only checked in the install-over-USB branch
-  (`AdbInstallVerifyActivity.b()` opens the Xiaomi login when the account list
-  for the type `com.xiaomi` is empty);
-* therefore `install-over-usb` additionally needs a signed-in Xiaomi account.
+* **offline** — the option cannot be enabled at all, not even by hand: the toast
+  is *"Подключитесь к сети и повторите попытку"*;
+* **online** — the request goes out with an empty `xiaomi_id` (no account is
+  signed in) and the vendor answers *"Sign in with your Mi Account"* — for
+  **both** options;
+* **with an account signed in** — `AdbInputApplyActivity` takes another branch
+  (`v.a(context)` returns a non-empty account name) and shows a local dialog
+  that sets the property without contacting the server.
+
+So the account is a hard vendor requirement on this build, not a detail of the
+network check.
 
 ## 3. Gates on the adb identity
 

@@ -15,3 +15,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Semver tags on
   without exposing the password on the command line.
 - `dump` command: prints the accessibility tree of the active screen.
 - On-device accessibility driver (`harness/`): click, scroll, type, dump.
+- Fixes found while running the flow against a real device: the Settings
+  component name is quoted (the device shell expanded `$` in the inner class and
+  started the crashing drawer instead), MIUI's crash dialog is dismissed and the
+  Settings process is started on a sub-settings screen first, because the drawer
+  of this build cannot inflate `android.support.v7.widget.CardView`.
